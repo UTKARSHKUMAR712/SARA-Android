@@ -5,51 +5,34 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
-import android.os.Handler
 import android.os.IBinder
-import android.os.Looper
 import androidx.core.app.NotificationCompat
 import com.sara.android.R
+import com.sara.android.runtime.SaraRuntime
 
 class SaraForegroundService : Service() {
 
-    private val handler = Handler(Looper.getMainLooper())
-    private var counter = 0
-    private var lastError: String? = null
-
-    private val tickRunnable = object : Runnable {
-        override fun run() {
-            counter++
-            try {
-                val text = lastError ?: "App is running... (${counter}s)"
-                updateNotification(text)
-                lastError = null
-            } catch (e: Exception) {
-                lastError = "Error: ${e.message}"
-                updateNotification(lastError!!)
-            }
-            handler.postDelayed(this, 5000)
-        }
-    }
+    private lateinit var runtime: SaraRuntime
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        runtime = SaraRuntime(this).build()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         try {
-            val notification = buildNotification("Starting SARA...")
-            startForeground(NOTIFICATION_ID, notification)
-        } catch (e: Exception) {
-            lastError = "Foreground start failed: ${e.message}"
+            startForeground(NOTIFICATION_ID, buildNotification())
+        } catch (_: Exception) {
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.notify(NOTIFICATION_ID, buildNotification())
         }
-        handler.post(tickRunnable)
+        runtime.start()
         return START_STICKY
     }
 
     override fun onDestroy() {
-        handler.removeCallbacks(tickRunnable)
+        runtime.stop()
         super.onDestroy()
     }
 
@@ -60,18 +43,14 @@ class SaraForegroundService : Service() {
             CHANNEL_ID,
             CHANNEL_NAME,
             NotificationManager.IMPORTANCE_LOW
-        ).apply {
-            description = "SARA background service notifications"
-            setShowBadge(false)
-        }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
+        ).apply { setShowBadge(false) }
+        getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    private fun buildNotification(text: String): Notification {
+    private fun buildNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(NOTIFICATION_TITLE)
-            .setContentText(text)
+            .setContentText(NOTIFICATION_TEXT)
             .setSmallIcon(R.drawable.ic_notification)
             .setOngoing(true)
             .setSilent(true)
@@ -79,16 +58,11 @@ class SaraForegroundService : Service() {
             .build()
     }
 
-    private fun updateNotification(text: String) {
-        val notification = buildNotification(text)
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.notify(NOTIFICATION_ID, notification)
-    }
-
     companion object {
         private const val CHANNEL_ID = "sara_foreground_service"
         private const val CHANNEL_NAME = "SARA Service"
-        private const val NOTIFICATION_ID = 1
+        private const val NOTIFICATION_ID = 1001
         private const val NOTIFICATION_TITLE = "SARA"
+        private const val NOTIFICATION_TEXT = "Running in background"
     }
 }

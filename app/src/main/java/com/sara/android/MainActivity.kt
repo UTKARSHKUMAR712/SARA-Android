@@ -21,14 +21,14 @@ class MainActivity : Activity() {
                     Manifest.permission.POST_NOTIFICATIONS
                 ) != PackageManager.PERMISSION_GRANTED
             ) {
-                if (shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
+                if (!shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS)) {
                     startServiceAndFinish()
                     return
                 }
                 ActivityCompat.requestPermissions(
                     this,
                     arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                    NOTIFICATION_PERMISSION_CODE
+                    PERMISSION_CODE
                 )
                 return
             }
@@ -54,12 +54,11 @@ class MainActivity : Activity() {
             } else {
                 startService(intent)
             }
-        } catch (_: Exception) {
-        }
+        } catch (_: Exception) {}
         finish()
     }
 
     companion object {
-        private const val NOTIFICATION_PERMISSION_CODE = 1001
+        private const val PERMISSION_CODE = 1001
     }
 }

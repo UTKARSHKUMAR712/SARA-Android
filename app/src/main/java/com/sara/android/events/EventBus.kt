@@ -6,17 +6,18 @@ object EventBus {
 
     fun publish(event: Any) {
         val eventClass = event.javaClass
-        subscribers[eventClass]?.forEach { handler ->
-            handler(event)
-        }
-
-        subscribers[Event::class.java]?.forEach { handler ->
-            handler(event)
+        subscribers[eventClass]?.forEach { it(event) }
+        if (eventClass != Event::class.java) {
+            subscribers[Event::class.java]?.forEach { it(event) }
         }
     }
 
     fun <T : Any> subscribe(eventClass: Class<T>, handler: (T) -> Unit) {
         subscribers.getOrPut(eventClass) { mutableListOf() }.add { handler(it as T) }
+    }
+
+    inline fun <reified T : Event> subscribe(crossinline handler: (T) -> Unit) {
+        subscribe(T::class.java) { handler(it) }
     }
 
     fun <T : Any> unsubscribe(eventClass: Class<T>, handler: (T) -> Unit) {

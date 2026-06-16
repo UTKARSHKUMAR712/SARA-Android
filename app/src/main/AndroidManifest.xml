@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_REMOTE_MESSAGING" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
@@ -28,7 +29,7 @@
             android:name=".service.SaraForegroundService"
             android:exported="false"
             android:enabled="true"
-            android:foregroundServiceType="dataSync" />
+            android:foregroundServiceType="remoteMessaging" />
 
         <receiver
             android:name=".service.BootReceiver"
