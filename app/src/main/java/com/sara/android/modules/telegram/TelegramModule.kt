@@ -5,11 +5,21 @@ import android.os.Handler
 import android.os.HandlerThread
 import com.sara.android.events.EventBus
 import com.sara.android.events.TelegramStatusEvent
+import com.sara.android.modules.commands.BatteryCommand
+import com.sara.android.modules.commands.ClipboardCommand
+import com.sara.android.modules.commands.GpsCommand
 import com.sara.android.modules.commands.HelpCommand
+import com.sara.android.modules.commands.LocationCommand
 import com.sara.android.modules.commands.LockCommand
 import com.sara.android.modules.commands.NativeCommandRouter
+import com.sara.android.modules.commands.NetworkCommand
+import com.sara.android.modules.commands.NotifyCommand
 import com.sara.android.modules.commands.PingCommand
+import com.sara.android.modules.commands.RingCommand
 import com.sara.android.modules.commands.StatusCommand
+import com.sara.android.modules.commands.TorchCommand
+import com.sara.android.modules.commands.VolumeCommand
+import com.sara.android.modules.commands.WifiCommand
 import com.sara.android.runtime.Module
 import com.sara.android.ui.LogBuffer
 import com.sara.android.ui.TokenStorage
@@ -83,7 +93,17 @@ class TelegramModule : Module {
             PingCommand(),
             StatusCommand(),
             LockCommand(),
-            HelpCommand(commandRouter)
+            HelpCommand(commandRouter),
+            BatteryCommand(),
+            NetworkCommand(),
+            WifiCommand(),
+            GpsCommand(),
+            LocationCommand(),
+            VolumeCommand(),
+            RingCommand(),
+            TorchCommand(),
+            ClipboardCommand(),
+            NotifyCommand()
         ))
         LogBuffer.getInstance(context).info(name, "Connecting to Telegram...")
 
