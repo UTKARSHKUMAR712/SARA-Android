@@ -56,15 +56,21 @@ class CameraCommand : Command {
             handlerThread = HandlerThread("CameraCapture").apply { start() }
             val handler = Handler(handlerThread.looper)
 
-            camera.takePicture(null, null, Camera.PictureCallback { data, _ ->
-                try {
-                    val file = File(context.cacheDir, "sara_camera_${System.currentTimeMillis()}.jpg")
-                    file.outputStream().use { it.write(data) }
-                    result = CommandResult.Photo(file.absolutePath, "Camera capture")
-                } catch (e: Exception) {
-                    result = CommandResult.Text("Failed to save photo: ${e.message}")
-                } finally {
-                    latch.countDown()
+            camera.takePicture(null, null, object : Camera.PictureCallback {
+                override fun onPictureTaken(data: ByteArray?, cam: Camera) {
+                    try {
+                        if (data == null) {
+                            result = CommandResult.Text("Camera returned no data.")
+                            return
+                        }
+                        val file = File(context.cacheDir, "sara_camera_${System.currentTimeMillis()}.jpg")
+                        file.outputStream().use { it.write(data) }
+                        result = CommandResult.Photo(file.absolutePath, "Camera capture")
+                    } catch (e: Exception) {
+                        result = CommandResult.Text("Failed to save photo: ${e.message}")
+                    } finally {
+                        latch.countDown()
+                    }
                 }
             }, handler)
 
@@ -82,7 +88,8 @@ class CameraCommand : Command {
     }
 
     private fun findCamera(facing: Int): Int? {
-        val count = Camera.numberOfCameras
+        @Suppress("DEPRECATION")
+        val count = Camera.getNumberOfCameras()
         val info = Camera.CameraInfo()
         for (i in 0 until count) {
             Camera.getCameraInfo(i, info)

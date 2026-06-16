@@ -344,11 +344,11 @@ class TrackingModule : Module {
             try {
                 if (lm!!.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                     if (mode != TrackingMode.LOW_POWER) {
-                        lm!!.requestLocationUpdates(LocationManager.GPS_PROVIDER, minTime, minDist, locationListener!!, handler)
+                        lm!!.requestLocationUpdates(LocationManager.GPS_PROVIDER, minTime, minDist, locationListener!!, handler?.looper)
                     }
                 }
                 if (lm!!.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-                    lm!!.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, minTime, minDist.coerceAtLeast(10f), locationListener!!, handler)
+                    lm!!.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, minTime, minDist.coerceAtLeast(10f), locationListener!!, handler?.looper)
                 }
             } catch (_: SecurityException) {}
         }
