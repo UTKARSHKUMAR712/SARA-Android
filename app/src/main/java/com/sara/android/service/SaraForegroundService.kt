@@ -38,8 +38,12 @@ class SaraForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = buildNotification("Starting SARA...")
-        startForeground(NOTIFICATION_ID, notification)
+        try {
+            val notification = buildNotification("Starting SARA...")
+            startForeground(NOTIFICATION_ID, notification)
+        } catch (e: Exception) {
+            lastError = "Foreground start failed: ${e.message}"
+        }
         handler.post(tickRunnable)
         return START_STICKY
     }
