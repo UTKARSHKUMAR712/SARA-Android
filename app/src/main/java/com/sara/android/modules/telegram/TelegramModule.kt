@@ -3,7 +3,6 @@ package com.sara.android.modules.telegram
 import android.content.Context
 import android.os.Handler
 import android.os.HandlerThread
-import android.os.Looper
 import com.sara.android.events.EventBus
 import com.sara.android.events.TelegramStatusEvent
 import com.sara.android.runtime.Module
@@ -11,6 +10,8 @@ import com.sara.android.ui.LogBuffer
 import com.sara.android.ui.TokenStorage
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.StringWriter
+import java.io.PrintWriter
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -21,17 +22,20 @@ class TelegramModule : Module {
 
     private var appContext: Context? = null
     private var client: TelegramClient? = null
+    private var initThread: HandlerThread? = null
     private var pollThread: HandlerThread? = null
     private var pollHandler: Handler? = null
     private var polling = false
     private var lastUpdateId = 0L
     private val pollIntervalMs = 2000L
+    private var backoffMs = 1000L
 
     private val pollRunnable = object : Runnable {
         override fun run() {
             if (!polling) return
             val c = client ?: return
             val ctx = appContext ?: return
+            val log = LogBuffer.getInstance(ctx)
             try {
                 val updates = c.getUpdates(lastUpdateId + 1, 10)
                 for (i in 0 until updates.length()) {
@@ -42,11 +46,19 @@ class TelegramModule : Module {
                         processUpdate(ctx, c, update)
                     }
                 }
+                backoffMs = 1000L
             } catch (e: Exception) {
-                LogBuffer.getInstance(ctx).error(name, "Poll error: ${e.message}")
+                val sw = StringWriter()
+                e.printStackTrace(PrintWriter(sw))
+                log.error(name, "Poll error: ${e::class.java.simpleName}: ${e.message}")
+                for (line in sw.toString().lines().take(5)) {
+                    if (line.isNotBlank()) log.error(name, "  $line")
+                }
+                log.error(name, "Backing off ${backoffMs}ms")
+                backoffMs = (backoffMs * 2).coerceAtMost(30000L)
             }
             if (polling) {
-                pollHandler?.postDelayed(this, pollIntervalMs)
+                pollHandler?.postDelayed(this, backoffMs)
             }
         }
     }
@@ -62,20 +74,32 @@ class TelegramModule : Module {
         }
         client = TelegramClient(token)
         LogBuffer.getInstance(context).info(name, "Connecting to Telegram...")
-        try {
-            val me = client!!.getMe()
-            if (me != null) {
-                val username = me.optString("username", "?")
-                LogBuffer.getInstance(context).info(name, "Connected as @$username")
-                EventBus.publish(TelegramStatusEvent(true, "Connected as @$username"))
-                startPolling(context)
-            } else {
-                LogBuffer.getInstance(context).error(name, "getMe returned null — invalid token?")
-                EventBus.publish(TelegramStatusEvent(false, "getMe failed"))
+
+        initThread = HandlerThread("TelegramInit").apply { start() }
+        Handler(initThread!!.looper).post {
+            val log = LogBuffer.getInstance(context)
+            try {
+                log.info(name, "[HTTP] GET https://api.telegram.org/bot${token.take(8)}.../getMe")
+                val me = client!!.getMe()
+                if (me != null) {
+                    val username = me.optString("username", "?")
+                    val firstName = me.optString("first_name", "")
+                    log.info(name, "Connected as @$username ($firstName)")
+                    EventBus.publish(TelegramStatusEvent(true, "Connected as @$username"))
+                    startPolling(context)
+                } else {
+                    log.error(name, "getMe returned null — token might be invalid")
+                    EventBus.publish(TelegramStatusEvent(false, "getMe returned null"))
+                }
+            } catch (e: Exception) {
+                val sw = StringWriter()
+                e.printStackTrace(PrintWriter(sw))
+                log.error(name, "Connection failed: ${e::class.java.simpleName}: ${e.message}")
+                for (line in sw.toString().lines().take(8)) {
+                    if (line.isNotBlank()) log.error(name, "  $line")
+                }
+                EventBus.publish(TelegramStatusEvent(false, "${e::class.java.simpleName}: ${e.message}"))
             }
-        } catch (e: Exception) {
-            LogBuffer.getInstance(context).error(name, "Connection failed: ${e.message}")
-            EventBus.publish(TelegramStatusEvent(false, e.message ?: "Unknown error"))
         }
     }
 
@@ -85,6 +109,8 @@ class TelegramModule : Module {
         pollThread?.quitSafely()
         pollThread = null
         pollHandler = null
+        initThread?.quitSafely()
+        initThread = null
         client = null
     }
 
@@ -92,6 +118,7 @@ class TelegramModule : Module {
         pollThread = HandlerThread("TelegramPoll").apply { start() }
         pollHandler = Handler(pollThread!!.looper)
         polling = true
+        backoffMs = 1000L
         LogBuffer.getInstance(context).info(name, "Polling started (interval: ${pollIntervalMs}ms)")
         pollHandler?.post(pollRunnable)
     }
@@ -115,7 +142,7 @@ class TelegramModule : Module {
                     client.sendMessage(chatId, reply)
                     log.info(name, "Replied to @$userName: $reply")
                 } catch (e: Exception) {
-                    log.error(name, "Reply failed: ${e.message}")
+                    log.error(name, "Reply failed: ${e::class.java.simpleName}: ${e.message}")
                 }
             }
         }
@@ -126,6 +153,7 @@ class TelegramModule : Module {
             val log = LogBuffer.getInstance(context)
             Thread {
                 log.info("Telegram", "Testing token: ${token.take(8)}...")
+                log.info("Telegram", "[HTTP] GET https://api.telegram.org/bot${token.take(8)}.../getMe")
                 val client = TelegramClient(token)
                 try {
                     val me = client.getMe()
@@ -149,7 +177,7 @@ class TelegramModule : Module {
                                     log.info("Telegram", "Test message sent to chat $cid")
                                     sent = true
                                 } catch (e: Exception) {
-                                    log.error("Telegram", "Send to $cid failed: ${e.message}")
+                                    log.error("Telegram", "Send to $cid failed: ${e::class.java.simpleName}: ${e.message}")
                                 }
                             }
                         }
@@ -160,7 +188,7 @@ class TelegramModule : Module {
                         log.error("Telegram", "Token invalid (getMe returned null)")
                     }
                 } catch (e: Exception) {
-                    log.error("Telegram", "Test failed: ${e.message}")
+                    log.error("Telegram", "Test failed: ${e::class.java.simpleName}: ${e.message}")
                 }
             }.start()
         }
@@ -172,35 +200,35 @@ class TelegramClient(private val token: String) {
     private val baseUrl = "https://api.telegram.org/bot$token"
 
     fun getMe(): JSONObject? {
-        val json = get("$baseUrl/getMe")
+        val json = request("$baseUrl/getMe", 10000)
         return json?.optJSONObject("result")
     }
 
     fun getUpdates(offset: Long, timeout: Int): JSONArray {
         val url = "$baseUrl/getUpdates?offset=$offset&timeout=$timeout"
-        val json = get(url)
+        val json = request(url, 35000)
         return json?.optJSONArray("result") ?: JSONArray()
     }
 
     fun sendMessage(chatId: Long, text: String): Boolean {
         val encoded = URLEncoder.encode(text, "UTF-8")
         val url = "$baseUrl/sendMessage?chat_id=$chatId&text=$encoded&parse_mode=HTML"
-        val json = get(url)
+        val json = request(url, 10000)
         return json?.optBoolean("ok", false) == true
     }
 
-    private fun get(url: String): JSONObject? {
+    private fun request(url: String, readTimeoutMs: Int): JSONObject? {
         val conn = URL(url).openConnection() as HttpURLConnection
         conn.requestMethod = "GET"
         conn.connectTimeout = 10000
-        conn.readTimeout = 10000
+        conn.readTimeout = readTimeoutMs
         try {
             val code = conn.responseCode
             val body = if (code in 200..299) {
                 conn.inputStream.bufferedReader().readText()
             } else {
                 val err = conn.errorStream?.bufferedReader()?.readText() ?: ""
-                return JSONObject().apply { put("ok", false); put("error_body", err) }
+                return null
             }
             return JSONObject(body)
         } finally {
