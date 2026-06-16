@@ -7,6 +7,20 @@ open class Event {
 class ServiceStartEvent : Event()
 class ServiceStopEvent : Event()
 
+enum class ServiceStatus { STARTING, RUNNING, STOPPED, ERROR }
+
+class ServiceStatusEvent(val status: ServiceStatus, val message: String = "") : Event()
+
+class HealthEvent(
+    val uptime: Long,
+    val memoryUsage: Long,
+    val moduleCount: Int,
+    val eventCount: Int,
+    val lastError: String?
+) : Event()
+
+class TelegramStatusEvent(val connected: Boolean, val message: String = "") : Event()
+
 class AppEvent(val packageName: String, val action: String) : Event()
 class MediaEvent(val packageName: String, val isPlaying: Boolean) : Event()
 class BatteryEvent(val level: Int, val isCharging: Boolean) : Event()
