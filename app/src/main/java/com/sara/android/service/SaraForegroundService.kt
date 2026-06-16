@@ -32,10 +32,16 @@ class SaraForegroundService : Service() {
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
             ACTION_RESTART -> {
-                scheduleRestart = true
                 runtime.stop()
-                stopSelf()
-                return START_NOT_STICKY
+                runtime = SaraRuntime(this).build()
+                try {
+                    startForeground(NOTIFICATION_ID, buildNotification())
+                } catch (_: Exception) {
+                    getSystemService(NotificationManager::class.java)
+                        .notify(NOTIFICATION_ID, buildNotification())
+                }
+                runtime.start()
+                return START_STICKY
             }
             ACTION_STOP -> {
                 runtime.stop()
@@ -46,26 +52,13 @@ class SaraForegroundService : Service() {
                 try {
                     startForeground(NOTIFICATION_ID, buildNotification())
                 } catch (_: Exception) {
-                    val manager = getSystemService(NotificationManager::class.java)
-                    manager.notify(NOTIFICATION_ID, buildNotification())
+                    getSystemService(NotificationManager::class.java)
+                        .notify(NOTIFICATION_ID, buildNotification())
                 }
                 runtime.start()
                 return START_STICKY
             }
         }
-    }
-
-    override fun onDestroy() {
-        if (scheduleRestart) {
-            scheduleRestart = false
-            val intent = Intent(this, SaraForegroundService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(intent)
-            } else {
-                startService(intent)
-            }
-        }
-        super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
@@ -99,7 +92,5 @@ class SaraForegroundService : Service() {
 
         const val ACTION_RESTART = "com.sara.android.action.RESTART"
         const val ACTION_STOP = "com.sara.android.action.STOP"
-
-        private var scheduleRestart = false
     }
 }
