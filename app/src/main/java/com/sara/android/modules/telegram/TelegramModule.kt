@@ -5,6 +5,11 @@ import android.os.Handler
 import android.os.HandlerThread
 import com.sara.android.events.EventBus
 import com.sara.android.events.TelegramStatusEvent
+import com.sara.android.modules.commands.HelpCommand
+import com.sara.android.modules.commands.LockCommand
+import com.sara.android.modules.commands.NativeCommandRouter
+import com.sara.android.modules.commands.PingCommand
+import com.sara.android.modules.commands.StatusCommand
 import com.sara.android.runtime.Module
 import com.sara.android.ui.LogBuffer
 import com.sara.android.ui.TokenStorage
@@ -29,6 +34,7 @@ class TelegramModule : Module {
     private var lastUpdateId = 0L
     private val pollIntervalMs = 2000L
     private var backoffMs = 1000L
+    private val commandRouter = NativeCommandRouter()
 
     private val pollRunnable = object : Runnable {
         override fun run() {
@@ -73,6 +79,12 @@ class TelegramModule : Module {
             return
         }
         client = TelegramClient(token)
+        commandRouter.registerAll(listOf(
+            PingCommand(),
+            StatusCommand(),
+            LockCommand(),
+            HelpCommand(commandRouter)
+        ))
         LogBuffer.getInstance(context).info(name, "Connecting to Telegram...")
 
         initThread = HandlerThread("TelegramInit").apply { start() }
@@ -133,17 +145,27 @@ class TelegramModule : Module {
         val firstName = from?.optString("first_name", "") ?: ""
 
         val log = LogBuffer.getInstance(ctx)
+        val startMs = System.currentTimeMillis()
         log.info(name, "Incoming from @$userName ($firstName): $text")
 
-        when {
+        val reply = when {
             text.equals("hi", ignoreCase = true) || text.equals("/start", ignoreCase = true) -> {
-                val reply = "Hello! I am SARA \uD83E\uDD16"
-                try {
-                    client.sendMessage(chatId, reply)
-                    log.info(name, "Replied to @$userName: $reply")
-                } catch (e: Exception) {
-                    log.error(name, "Reply failed: ${e::class.java.simpleName}: ${e.message}")
-                }
+                "Hello! I am SARA \uD83E\uDD16"
+            }
+            text.startsWith("/") || text.startsWith("\\") -> {
+                val result = commandRouter.route(text, ctx)
+                if (result != null) result else null
+            }
+            else -> null
+        }
+
+        if (reply != null) {
+            val elapsed = System.currentTimeMillis() - startMs
+            try {
+                client.sendMessage(chatId, reply)
+                log.info(name, "Replied to @$userName (${elapsed}ms): ${reply.take(60)}")
+            } catch (e: Exception) {
+                log.error(name, "Reply failed: ${e::class.java.simpleName}: ${e.message}")
             }
         }
     }
