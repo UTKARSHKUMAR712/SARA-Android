@@ -8,20 +8,20 @@ class LockCommand : Command {
     override val name = "lock"
     override val description = "Lock the device immediately"
 
-    override fun execute(context: Context, args: List<String>): String {
+    override fun execute(context: Context, args: List<String>): CommandResult {
         val dpm = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
         val admin = ComponentName(context, SaraDeviceAdminReceiver::class.java)
 
         if (!dpm.isAdminActive(admin)) {
-            return "❌ Device admin not enabled.\n" +
-                    "Open SARA Dashboard → Settings → Enable Device Admin."
+            return CommandResult.Text("❌ Device admin not enabled.\n" +
+                    "Open SARA Dashboard → Settings → Enable Device Admin.")
         }
 
         try {
             dpm.lockNow()
-            return "\uD83D\uDD12 Device locked successfully."
+            return CommandResult.Text("\uD83D\uDD12 Device locked successfully.")
         } catch (e: SecurityException) {
-            return "❌ Lock failed: ${e.message}"
+            return CommandResult.Text("❌ Lock failed: ${e.message}")
         }
     }
 }

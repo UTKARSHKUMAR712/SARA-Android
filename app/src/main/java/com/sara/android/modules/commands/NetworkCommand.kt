@@ -12,7 +12,7 @@ class NetworkCommand : Command {
     override val name = "network"
     override val description = "Show network connectivity status"
 
-    override fun execute(context: Context, args: List<String>): String {
+    override fun execute(context: Context, args: List<String>): CommandResult {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val activeNetwork = cm.activeNetwork
         val caps = activeNetwork?.let { cm.getNetworkCapabilities(it) }
@@ -42,7 +42,7 @@ class NetworkCommand : Command {
         val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val ssid = try { wm.connectionInfo?.ssid ?: "N/A" } catch (_: Exception) { "N/A" }
 
-        return buildString {
+        return CommandResult.Text(buildString {
             appendLine("\uD83C\uDF10 Network")
             appendLine()
             appendLine("Connected: ${if (connected) "Yes" else "No"}")
@@ -52,6 +52,6 @@ class NetworkCommand : Command {
                 appendLine("SSID: $ssid")
             }
             appendLine("Local IP: $ip")
-        }
+        })
     }
 }

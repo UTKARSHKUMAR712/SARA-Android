@@ -10,8 +10,8 @@ class NotifyCommand : Command {
     override val name = "notify"
     override val description = "Send a local notification: /notify <text>"
 
-    override fun execute(context: Context, args: List<String>): String {
-        if (args.isEmpty()) return "Usage: /notify <message text>"
+    override fun execute(context: Context, args: List<String>): CommandResult {
+        if (args.isEmpty()) return CommandResult.Text("Usage: /notify <message text>")
 
         val text = args.joinToString(" ")
 
@@ -34,7 +34,7 @@ class NotifyCommand : Command {
 
         manager.notify(System.currentTimeMillis().toInt(), notification)
 
-        return "\uD83D\uDD14 Notification sent: $text"
+        return CommandResult.Text("\uD83D\uDD14 Notification sent: $text")
     }
 
     companion object {

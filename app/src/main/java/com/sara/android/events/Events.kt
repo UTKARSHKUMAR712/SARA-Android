@@ -29,3 +29,30 @@ class ScreenEvent(val screenOn: Boolean) : Event()
 class BootEvent : Event()
 class NotificationEvent(val packageName: String, val title: String) : Event()
 class ModuleEvent(val moduleName: String, val action: String, val data: Any? = null) : Event()
+
+data class TrackingUpdate(
+    val chatId: Long,
+    val latitude: Double,
+    val longitude: Double,
+    val accuracy: Float,
+    val provider: String,
+    val locationTime: Long,
+    val speed: Float,
+    val bearing: Float,
+    val updateNumber: Int,
+    val sessionDuration: Long,
+    val totalDistance: Float
+)
+
+class TrackingUpdateEvent(val update: TrackingUpdate) : Event()
+
+data class TrackingSummary(
+    val chatId: Long,
+    val startTime: Long,
+    val endTime: Long,
+    val totalUpdates: Int,
+    val totalDistance: Float,
+    val averageSpeed: Float
+)
+
+class TrackingSessionEvent(val summary: TrackingSummary) : Event()

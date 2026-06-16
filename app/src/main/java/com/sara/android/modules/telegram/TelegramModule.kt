@@ -5,8 +5,12 @@ import android.os.Handler
 import android.os.HandlerThread
 import com.sara.android.events.EventBus
 import com.sara.android.events.TelegramStatusEvent
+import com.sara.android.events.TrackingSessionEvent
+import com.sara.android.events.TrackingUpdateEvent
 import com.sara.android.modules.commands.BatteryCommand
+import com.sara.android.modules.commands.CameraCommand
 import com.sara.android.modules.commands.ClipboardCommand
+import com.sara.android.modules.commands.CommandResult
 import com.sara.android.modules.commands.GpsCommand
 import com.sara.android.modules.commands.HelpCommand
 import com.sara.android.modules.commands.LocationCommand
@@ -16,8 +20,10 @@ import com.sara.android.modules.commands.NetworkCommand
 import com.sara.android.modules.commands.NotifyCommand
 import com.sara.android.modules.commands.PingCommand
 import com.sara.android.modules.commands.RingCommand
+import com.sara.android.modules.commands.ScreenshotCommand
 import com.sara.android.modules.commands.StatusCommand
 import com.sara.android.modules.commands.TorchCommand
+import com.sara.android.modules.commands.TrackCommand
 import com.sara.android.modules.commands.VolumeCommand
 import com.sara.android.modules.commands.WifiCommand
 import com.sara.android.runtime.Module
@@ -103,8 +109,12 @@ class TelegramModule : Module {
             RingCommand(),
             TorchCommand(),
             ClipboardCommand(),
-            NotifyCommand()
+            NotifyCommand(),
+            CameraCommand(),
+            ScreenshotCommand(),
+            TrackCommand()
         ))
+        subscribeTrackingEvents()
         LogBuffer.getInstance(context).info(name, "Connecting to Telegram...")
 
         initThread = HandlerThread("TelegramInit").apply { start() }
@@ -146,6 +156,60 @@ class TelegramModule : Module {
         client = null
     }
 
+    private fun subscribeTrackingEvents() {
+        EventBus.subscribe(TrackingUpdateEvent::class.java) { event ->
+            val c = client ?: return@subscribe
+            val u = event.update
+            val df = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+            val timeStr = df.format(java.util.Date(u.locationTime))
+            val text = buildString {
+                appendLine("\uD83D\uDCCD Tracking Update #${u.updateNumber}")
+                appendLine()
+                appendLine("Latitude: ${"%.6f".format(u.latitude)}")
+                appendLine("Longitude: ${"%.6f".format(u.longitude)}")
+                appendLine("Accuracy: ${"%.1f".format(u.accuracy)} m")
+                appendLine("Provider: ${u.provider}")
+                appendLine("Timestamp: $timeStr")
+                if (u.speed > 0f) appendLine("Speed: ${"%.1f".format(u.speed)} m/s")
+                if (u.bearing > 0f) appendLine("Bearing: ${"%.1f".format(u.bearing)}\u00b0")
+                appendLine()
+                appendLine("https://www.google.com/maps?q=${"%.6f".format(u.latitude)},${"%.6f".format(u.longitude)}")
+            }
+            try {
+                c.sendMessage(u.chatId, text)
+            } catch (_: Exception) {}
+        }
+
+        EventBus.subscribe(TrackingSessionEvent::class.java) { event ->
+            val c = client ?: return@subscribe
+            val s = event.summary
+            val duration = s.endTime - s.startTime
+            val durSec = duration / 1000
+            val hrs = durSec / 3600
+            val mins = (durSec % 3600) / 60
+            val secs = durSec % 60
+            val df = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
+            val text = buildString {
+                appendLine("Tracking Session Summary")
+                appendLine()
+                appendLine("Start: ${df.format(java.util.Date(s.startTime))}")
+                appendLine("End: ${df.format(java.util.Date(s.endTime))}")
+                appendLine("Duration: ${hrs}h ${mins}m ${secs}s")
+                appendLine("Updates sent: ${s.totalUpdates}")
+                appendLine("Total distance: ${"%.1f".format(s.totalDistance)} m")
+                if (s.averageSpeed > 0f) {
+                    append("Avg speed: ${"%.2f".format(s.averageSpeed)} m/s")
+                    val kmh = s.averageSpeed * 3.6f
+                    append(" (${"%.1f".format(kmh)} km/h)")
+                    appendLine()
+                }
+            }
+            try {
+                c.sendMessage(s.chatId, text)
+            } catch (_: Exception) {}
+        }
+    }
+
     private fun startPolling(context: Context) {
         pollThread = HandlerThread("TelegramPoll").apply { start() }
         pollHandler = Handler(pollThread!!.looper)
@@ -164,17 +228,18 @@ class TelegramModule : Module {
         val userName = from?.optString("username", "?") ?: "?"
         val firstName = from?.optString("first_name", "") ?: ""
 
+        com.sara.android.modules.commands.TrackCommand.lastChatId = chatId
+
         val log = LogBuffer.getInstance(ctx)
         val startMs = System.currentTimeMillis()
         log.info(name, "Incoming from @$userName ($firstName): $text")
 
-        val reply = when {
+        val reply: CommandResult? = when {
             text.equals("hi", ignoreCase = true) || text.equals("/start", ignoreCase = true) -> {
-                "Hello! I am SARA \uD83E\uDD16"
+                CommandResult.Text("Hello! I am SARA \uD83E\uDD16")
             }
             text.startsWith("/") || text.startsWith("\\") -> {
-                val result = commandRouter.route(text, ctx)
-                if (result != null) result else null
+                commandRouter.route(text, ctx)
             }
             else -> null
         }
@@ -182,8 +247,22 @@ class TelegramModule : Module {
         if (reply != null) {
             val elapsed = System.currentTimeMillis() - startMs
             try {
-                client.sendMessage(chatId, reply)
-                log.info(name, "Replied to @$userName (${elapsed}ms): ${reply.take(60)}")
+                when (reply) {
+                    is CommandResult.Text -> {
+                        client.sendMessage(chatId, reply.message)
+                        log.info(name, "Replied to @$userName (${elapsed}ms): ${reply.message.take(60)}")
+                    }
+                    is CommandResult.Photo -> {
+                        val file = java.io.File(reply.filePath)
+                        if (file.exists()) {
+                            client.sendPhoto(chatId, reply.filePath, reply.caption)
+                            log.info(name, "Sent photo to @$userName (${elapsed}ms): ${file.name}")
+                        } else {
+                            client.sendMessage(chatId, "Photo file not found: ${reply.filePath}")
+                            log.error(name, "Photo file missing: ${reply.filePath}")
+                        }
+                    }
+                }
             } catch (e: Exception) {
                 log.error(name, "Reply failed: ${e::class.java.simpleName}: ${e.message}")
             }
@@ -257,6 +336,59 @@ class TelegramClient(private val token: String) {
         val url = "$baseUrl/sendMessage?chat_id=$chatId&text=$encoded&parse_mode=HTML"
         val json = request(url, 10000)
         return json?.optBoolean("ok", false) == true
+    }
+
+    fun sendPhoto(chatId: Long, filePath: String, caption: String? = null): Boolean {
+        val url = URL("$baseUrl/sendPhoto")
+        val boundary = "SARA${System.currentTimeMillis()}"
+        val conn = url.openConnection() as HttpURLConnection
+        conn.requestMethod = "POST"
+        conn.doOutput = true
+        conn.useCaches = false
+        conn.connectTimeout = 15000
+        conn.readTimeout = 30000
+        conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+        try {
+            val outputStream = conn.outputStream
+            val writer = java.io.BufferedWriter(java.io.OutputStreamWriter(outputStream, "UTF-8"))
+
+            writer.write("--$boundary\r\n")
+            writer.write("Content-Disposition: form-data; name=\"chat_id\"\r\n\r\n")
+            writer.write(chatId.toString())
+            writer.write("\r\n")
+
+            if (caption != null) {
+                writer.write("--$boundary\r\n")
+                writer.write("Content-Disposition: form-data; name=\"caption\"\r\n\r\n")
+                writer.write(caption)
+                writer.write("\r\n")
+            }
+
+            val file = java.io.File(filePath)
+            writer.write("--$boundary\r\n")
+            writer.write("Content-Disposition: form-data; name=\"photo\"; filename=\"${file.name}\"\r\n")
+            writer.write("Content-Type: image/jpeg\r\n\r\n")
+            writer.flush()
+
+            outputStream.write(file.readBytes())
+            outputStream.flush()
+
+            writer.write("\r\n--$boundary--\r\n")
+            writer.flush()
+            writer.close()
+
+            val code = conn.responseCode
+            val body = if (code in 200..299) {
+                conn.inputStream.bufferedReader().readText()
+            } else {
+                conn.errorStream?.bufferedReader()?.readText() ?: ""
+                return false
+            }
+            val json = JSONObject(body)
+            return json.optBoolean("ok", false)
+        } finally {
+            conn.disconnect()
+        }
     }
 
     private fun request(url: String, readTimeoutMs: Int): JSONObject? {

@@ -15,6 +15,7 @@ import com.sara.android.modules.notifications.NotificationModule
 import com.sara.android.modules.rules.RuleEngine
 import com.sara.android.modules.storage.StorageModule
 import com.sara.android.modules.telegram.TelegramModule
+import com.sara.android.modules.tracking.TrackingModule
 import com.sara.android.modules.watchers.WatcherModule
 
 class SaraRuntime(private val context: Context) {
@@ -42,6 +43,7 @@ class SaraRuntime(private val context: Context) {
         modules.add(MediaModule())
         modules.add(LlmModule())
         modules.add(StorageModule())
+        modules.add(TrackingModule())
         return this
     }
 

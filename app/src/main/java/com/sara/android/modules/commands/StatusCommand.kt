@@ -11,7 +11,7 @@ class StatusCommand : Command {
     override val name = "status"
     override val description = "Show SARA runtime status"
 
-    override fun execute(context: Context, args: List<String>): String {
+    override fun execute(context: Context, args: List<String>): CommandResult {
         val rt = Runtime.getRuntime()
         val usedMem = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024)
         val totalMem = rt.totalMemory() / (1024 * 1024)
@@ -22,6 +22,6 @@ class StatusCommand : Command {
         sb.appendLine("Memory: ${usedMem}MB / ${totalMem}MB")
         sb.appendLine("Telegram: Connected")
 
-        return sb.toString()
+        return CommandResult.Text(sb.toString())
     }
 }

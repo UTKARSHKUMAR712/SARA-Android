@@ -12,10 +12,10 @@ class RingCommand : Command {
     override val name = "ring"
     override val description = "Play ringtone for 3 seconds"
 
-    override fun execute(context: Context, args: List<String>): String {
+    override fun execute(context: Context, args: List<String>): CommandResult {
         try {
             val uri: Uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                ?: return "No ringtone found on device."
+                ?: return CommandResult.Text("No ringtone found on device.")
 
             val player = MediaPlayer().apply {
                 setAudioAttributes(
@@ -40,9 +40,9 @@ class RingCommand : Command {
                 } catch (_: Exception) {}
             }, 3000)
 
-            return "\uD83D\uDD14 Ringtone playing for 3 seconds..."
+            return CommandResult.Text("\uD83D\uDD14 Ringtone playing for 3 seconds...")
         } catch (e: Exception) {
-            return "Failed to play ringtone: ${e.message}"
+            return CommandResult.Text("Failed to play ringtone: ${e.message}")
         }
     }
 }

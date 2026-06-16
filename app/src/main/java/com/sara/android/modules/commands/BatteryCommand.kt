@@ -9,9 +9,9 @@ class BatteryCommand : Command {
     override val name = "battery"
     override val description = "Show battery status"
 
-    override fun execute(context: Context, args: List<String>): String {
+    override fun execute(context: Context, args: List<String>): CommandResult {
         val intent = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        if (intent == null) return "Could not read battery state."
+        if (intent == null) return CommandResult.Text("Could not read battery state.")
 
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
@@ -48,7 +48,7 @@ class BatteryCommand : Command {
         val temp = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1)
         val tempC = if (temp >= 0) temp / 10.0 else -1.0
 
-        return buildString {
+        return CommandResult.Text(buildString {
             appendLine("\uD83D\uDD0B Battery")
             appendLine()
             appendLine("Level: $pct%")
@@ -56,6 +56,6 @@ class BatteryCommand : Command {
             if (plugStr != "None") appendLine("Power source: $plugStr")
             appendLine("Health: $healthStr")
             if (tempC >= 0) appendLine("Temperature: ${"%.1f".format(tempC)}°C")
-        }
+        })
     }
 }

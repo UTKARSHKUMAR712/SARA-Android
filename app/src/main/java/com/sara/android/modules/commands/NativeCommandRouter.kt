@@ -15,7 +15,7 @@ class NativeCommandRouter {
         for (cmd in commands) register(cmd)
     }
 
-    fun route(text: String, context: Context): String? {
+    fun route(text: String, context: Context): CommandResult? {
         val trimmed = text.trim()
         val parts = trimmed.split("\\s+".toRegex())
         if (parts.isEmpty()) return null
@@ -29,10 +29,29 @@ class NativeCommandRouter {
     }
 
     fun getHelpText(): String {
-        val sb = StringBuilder("Available commands:")
+        val info = mutableListOf<String>()
+        val media = mutableListOf<String>()
+        val location = mutableListOf<String>()
+        val device = mutableListOf<String>()
+        val general = mutableListOf<String>()
+
         for ((_, cmd) in commands) {
-            sb.append("\n/${cmd.name} — ${cmd.description}")
+            val line = "/${cmd.name} — ${cmd.description}"
+            when (cmd.name) {
+                "camera", "screenshot" -> media.add(line)
+                "location", "gps", "track" -> location.add(line)
+                "battery", "network", "wifi", "volume", "ring", "torch", "lock", "clipboard", "notify" -> device.add(line)
+                else -> general.add(line)
+            }
         }
-        return sb.toString()
+
+        return buildString {
+            appendLine("SARA — Available Commands")
+            appendLine()
+            if (general.isNotEmpty()) { appendLine("General:"); general.forEach { appendLine("  $it") }; appendLine() }
+            if (location.isNotEmpty()) { appendLine("Location:"); location.forEach { appendLine("  $it") }; appendLine() }
+            if (media.isNotEmpty()) { appendLine("Media:"); media.forEach { appendLine("  $it") }; appendLine() }
+            if (device.isNotEmpty()) { appendLine("Device:"); device.forEach { appendLine("  $it") } }
+        }
     }
 }

@@ -7,7 +7,7 @@ class VolumeCommand : Command {
     override val name = "volume"
     override val description = "Show current volume levels"
 
-    override fun execute(context: Context, args: List<String>): String {
+    override fun execute(context: Context, args: List<String>): CommandResult {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
         val media = am.getStreamVolume(AudioManager.STREAM_MUSIC)
@@ -27,7 +27,7 @@ class VolumeCommand : Command {
             return "\u2588".repeat(filled) + "\u2591".repeat((8 - filled).coerceAtLeast(0)) + " $value/$max"
         }
 
-        return buildString {
+        return CommandResult.Text(buildString {
             appendLine("\uD83D\uDD0A Volume")
             appendLine()
             appendLine("Media:   ${bar(media, mediaMax)}")
@@ -43,6 +43,6 @@ class VolumeCommand : Command {
                     else -> "Unknown"
                 }
             }")
-        }
+        })
     }
 }

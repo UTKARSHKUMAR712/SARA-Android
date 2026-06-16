@@ -7,7 +7,7 @@ class WifiCommand : Command {
     override val name = "wifi"
     override val description = "Show Wi-Fi status"
 
-    override fun execute(context: Context, args: List<String>): String {
+    override fun execute(context: Context, args: List<String>): CommandResult {
         val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val enabled = wm.isWifiEnabled
 
@@ -32,12 +32,12 @@ class WifiCommand : Command {
             signal = "N/A"
         }
 
-        return buildString {
+        return CommandResult.Text(buildString {
             appendLine("\uD83D\uDCF6 Wi-Fi")
             appendLine()
             appendLine("Enabled: ${if (enabled) "Yes" else "No"}")
             appendLine("SSID: $info")
             appendLine("Signal: $signal")
-        }
+        })
     }
 }
