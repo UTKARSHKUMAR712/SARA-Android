@@ -11,6 +11,7 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.sara.android.R
 import com.sara.android.events.EventBus
+import com.sara.android.modules.telegram.TelegramModule
 import com.sara.android.runtime.SaraRuntime
 
 class SaraForegroundService : Service() {
@@ -21,6 +22,10 @@ class SaraForegroundService : Service() {
 
     inner class LocalBinder : Binder() {
         fun getService(): SaraForegroundService = this@SaraForegroundService
+    }
+
+    fun testTelegramToken(token: String) {
+        TelegramModule.testToken(this, token)
     }
 
     override fun onCreate() {

@@ -22,6 +22,7 @@ import com.sara.android.events.HealthEvent
 import com.sara.android.events.ServiceStatus
 import com.sara.android.events.ServiceStatusEvent
 import com.sara.android.events.TelegramStatusEvent
+import com.sara.android.modules.telegram.TelegramModule
 import com.sara.android.service.SaraForegroundService
 import com.sara.android.ui.LogBuffer
 import com.sara.android.ui.TokenStorage
@@ -37,6 +38,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var tokenInput: EditText
     private lateinit var saveTokenBtn: Button
+    private lateinit var testTokenBtn: Button
     private lateinit var startBtn: Button
     private lateinit var stopBtn: Button
     private lateinit var restartBtn: Button
@@ -104,6 +106,7 @@ class MainActivity : AppCompatActivity() {
     private fun bindViews() {
         tokenInput = findViewById(R.id.tokenInput)
         saveTokenBtn = findViewById(R.id.saveTokenBtn)
+        testTokenBtn = findViewById(R.id.testTokenBtn)
         startBtn = findViewById(R.id.startBtn)
         stopBtn = findViewById(R.id.stopBtn)
         restartBtn = findViewById(R.id.restartBtn)
@@ -118,6 +121,7 @@ class MainActivity : AppCompatActivity() {
         clearLogsBtn = findViewById(R.id.clearLogsBtn)
 
         saveTokenBtn.setOnClickListener { saveToken() }
+        testTokenBtn.setOnClickListener { testToken() }
         startBtn.setOnClickListener { startService() }
         stopBtn.setOnClickListener { stopService() }
         restartBtn.setOnClickListener { restartService() }
@@ -138,6 +142,21 @@ class MainActivity : AppCompatActivity() {
         if (token.isNotBlank()) {
             tokenStorage.saveToken(token)
             logBuffer.info("UI", "Bot token saved (${token.take(8)}...)")
+        }
+    }
+
+    private fun testToken() {
+        val token = tokenInput.text.toString().trim()
+        if (token.isBlank()) {
+            logBuffer.warn("UI", "Enter a token first")
+            return
+        }
+        tokenStorage.saveToken(token)
+        logBuffer.info("UI", "Testing token...")
+        if (bound && service != null) {
+            service!!.testTelegramToken(token)
+        } else {
+            TelegramModule.testToken(this, token)
         }
     }
 

@@ -39,13 +39,30 @@
             android:padding="12dp"
             android:layout_marginTop="4dp" />
 
-        <Button
-            android:id="@+id/saveTokenBtn"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Save Token"
-            android:layout_marginTop="8dp"
-            android:backgroundTint="#1976D2" />
+            android:orientation="horizontal"
+            android:layout_marginTop="8dp">
+
+            <Button
+                android:id="@+id/saveTokenBtn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Save Token"
+                android:layout_marginEnd="4dp"
+                android:backgroundTint="#1976D2" />
+
+            <Button
+                android:id="@+id/testTokenBtn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Test Token"
+                android:layout_marginStart="4dp"
+                android:backgroundTint="#7B1FA2" />
+        </LinearLayout>
 
         <TextView
             android:layout_width="wrap_content"
