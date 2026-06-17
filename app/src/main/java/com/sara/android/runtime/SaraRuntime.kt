@@ -7,12 +7,13 @@ import com.sara.android.events.ServiceStartEvent
 import com.sara.android.events.ServiceStatus
 import com.sara.android.events.ServiceStatusEvent
 import com.sara.android.events.ServiceStopEvent
+import com.sara.android.modules.app.AppModule
 import com.sara.android.modules.automation.AutomationEngine
+import com.sara.android.modules.commands.DiagnosticsManager
 import com.sara.android.modules.jobs.JobScheduler
-import com.sara.android.modules.llm.LlmModule
-import com.sara.android.modules.media.MediaModule
+import com.sara.android.modules.media.CameraModule
+import com.sara.android.modules.media.ScreenshotModule
 import com.sara.android.modules.notifications.NotificationModule
-import com.sara.android.modules.rules.RuleEngine
 import com.sara.android.modules.storage.StorageModule
 import com.sara.android.modules.telegram.TelegramModule
 import com.sara.android.modules.tracking.TrackingModule
@@ -28,20 +29,26 @@ class SaraRuntime(private val context: Context) {
         private set
     private var _eventCount = 0
 
+    init {
+        DiagnosticsManager.runtime = this
+    }
+
     val eventCount: Int get() = _eventCount
     val moduleCount: Int get() = modules.size
     val isStarted: Boolean get() = started
 
+    fun getModules(): List<Module> = modules.toList()
+
     fun build(): SaraRuntime {
         modules.clear()
         modules.add(WatcherModule())
-        modules.add(RuleEngine())
         modules.add(JobScheduler())
         modules.add(AutomationEngine())
+        modules.add(AppModule())
         modules.add(NotificationModule())
         modules.add(TelegramModule())
-        modules.add(MediaModule())
-        modules.add(LlmModule())
+        modules.add(CameraModule())
+        modules.add(ScreenshotModule())
         modules.add(StorageModule())
         modules.add(TrackingModule())
         return this

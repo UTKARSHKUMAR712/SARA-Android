@@ -1,93 +1,116 @@
 package com.sara.android.modules.commands
 
+import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.ImageFormat
-import android.hardware.Camera
+import android.os.Handler
+import android.os.Looper
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
 import androidx.core.content.ContextCompat
+import com.sara.android.modules.media.CameraModule
+import com.sara.android.modules.media.ServiceLifecycleOwner
 import java.io.File
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class CameraCommand : Command {
     override val name = "camera"
-    override val description = "Capture a photo. Usage: /camera [front|back]"
+    override val description = "Capture a photo using CameraX. Usage: /camera [front|back]"
 
     override fun execute(context: Context, args: List<String>): CommandResult {
-        if (ContextCompat.checkSelfPermission(context, android.Manifest.permission.CAMERA)
-            != PackageManager.PERMISSION_GRANTED
-        ) {
-            return CommandResult.Text(
-                "Camera permission not granted.\n" +
-                "Grant CAMERA permission via Settings → Apps → SARA → Permissions."
-            )
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
+            != PackageManager.PERMISSION_GRANTED) {
+            return CommandResult.Text("📷 Camera permission not granted.")
         }
+
+        val cameraModule = CameraModule.instance
+        if (cameraModule == null || cameraModule.cameraProvider == null) {
+            return CommandResult.Text("📷 CameraModule is not initialized.")
+        }
+        val cameraProvider = cameraModule.cameraProvider!!
 
         val facing = if (args.firstOrNull() == "front") {
-            Camera.CameraInfo.CAMERA_FACING_FRONT
+            CameraSelector.LENS_FACING_FRONT
         } else {
-            Camera.CameraInfo.CAMERA_FACING_BACK
+            CameraSelector.LENS_FACING_BACK
         }
 
-        val cameraId = findCamera(facing)
-        if (cameraId == null) {
-            return CommandResult.Text("No camera found for the requested facing direction.")
+        val cameraSelector = CameraSelector.Builder()
+            .requireLensFacing(facing)
+            .build()
+
+        if (!cameraProvider.hasCamera(cameraSelector)) {
+            return CommandResult.Text("📷 No camera found for the requested facing direction.")
         }
+
+        val imageCapture = ImageCapture.Builder()
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .build()
+
+        val lifecycleOwner = ServiceLifecycleOwner()
 
         val latch = CountDownLatch(1)
         var result: CommandResult = CommandResult.Text("Camera error: unknown")
-        var camera: Camera? = null
+
+        val mainHandler = Handler(Looper.getMainLooper())
+        
+        mainHandler.post {
+            try {
+                if (context is com.sara.android.service.SaraForegroundService) {
+                    context.addForegroundType(android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
+                }
+                cameraProvider.unbindAll()
+                lifecycleOwner.start()
+                cameraProvider.bindToLifecycle(lifecycleOwner, cameraSelector, imageCapture)
+                
+                val file = File(context.cacheDir, "sara_camera_${System.currentTimeMillis()}.jpg")
+                val outputOptions = ImageCapture.OutputFileOptions.Builder(file).build()
+
+                imageCapture.takePicture(
+                    outputOptions,
+                    ContextCompat.getMainExecutor(context),
+                    object : ImageCapture.OnImageSavedCallback {
+                        override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                            result = CommandResult.Photo(file.absolutePath, "Camera capture")
+                            lifecycleOwner.stop()
+                            cameraProvider.unbindAll()
+                            latch.countDown()
+                        }
+
+                        override fun onError(exc: ImageCaptureException) {
+                            result = CommandResult.Text("📷 Failed to save photo: ${exc.message}")
+                            lifecycleOwner.stop()
+                            cameraProvider.unbindAll()
+                            latch.countDown()
+                        }
+                    }
+                )
+            } catch (e: Exception) {
+                result = CommandResult.Text("📷 Camera binding failed: ${e.message}")
+                lifecycleOwner.stop()
+                cameraProvider.unbindAll()
+                latch.countDown()
+            }
+        }
 
         try {
-            camera = Camera.open(cameraId)
-            val params = camera.parameters ?: return CommandResult.Text("Failed to get camera parameters.")
-
-            val sizes = params.supportedPictureSizes
-            if (sizes != null && sizes.isNotEmpty()) {
-                val best = sizes.maxByOrNull { it.width * it.height }
-                params.setPictureSize(best!!.width, best.height)
+            if (!latch.await(15, TimeUnit.SECONDS)) {
+                result = CommandResult.Text("📷 Camera capture timed out after 15 seconds.")
             }
-            params.pictureFormat = ImageFormat.JPEG
-            camera.parameters = params
-
-            camera.takePicture(null, null, object : Camera.PictureCallback {
-                override fun onPictureTaken(data: ByteArray?, cam: Camera) {
-                    try {
-                        if (data == null) {
-                            result = CommandResult.Text("Camera returned no data.")
-                            return
-                        }
-                        val file = File(context.cacheDir, "sara_camera_${System.currentTimeMillis()}.jpg")
-                        file.outputStream().use { it.write(data) }
-                        result = CommandResult.Photo(file.absolutePath, "Camera capture")
-                    } catch (e: Exception) {
-                        result = CommandResult.Text("Failed to save photo: ${e.message}")
-                    } finally {
-                        latch.countDown()
-                    }
-                }
-            })
-
-            if (!latch.await(10, TimeUnit.SECONDS)) {
-                result = CommandResult.Text("Camera capture timed out after 10 seconds.")
-            }
-        } catch (e: Exception) {
-            result = CommandResult.Text("Camera error: ${e.message}")
         } finally {
-            camera?.release()
+            mainHandler.post {
+                try {
+                    lifecycleOwner.stop()
+                    cameraProvider.unbindAll()
+                    if (context is com.sara.android.service.SaraForegroundService) {
+                        context.removeForegroundType(android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_CAMERA)
+                    }
+                } catch (e: Exception) {}
+            }
         }
 
         return result
-    }
-
-    private fun findCamera(facing: Int): Int? {
-        @Suppress("DEPRECATION")
-        val count = Camera.getNumberOfCameras()
-        val info = Camera.CameraInfo()
-        for (i in 0 until count) {
-            Camera.getCameraInfo(i, info)
-            if (info.facing == facing) return i
-        }
-        return if (count > 0) 0 else null
     }
 }

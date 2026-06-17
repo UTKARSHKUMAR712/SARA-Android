@@ -1,27 +1,64 @@
 package com.sara.android.events
 
-object EventBus {
+import android.util.Log
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.Executors
 
-    private val subscribers = mutableMapOf<Class<*>, MutableList<(Any) -> Unit>>()
+object EventBus {
+    
+    private val TAG = "EventBus"
+    
+    private class Subscription<T : Any>(
+        val owner: Any,
+        val handler: (T) -> Unit
+    )
+    
+    private val subscribers = ConcurrentHashMap<Class<*>, CopyOnWriteArrayList<Subscription<*>>>()
+    
+    // Shared executor for asynchronous event dispatch to not block the caller thread
+    private val executor = Executors.newCachedThreadPool()
 
     fun publish(event: Any) {
         val eventClass = event.javaClass
-        subscribers[eventClass]?.forEach { it(event) }
-        if (eventClass != Event::class.java) {
-            subscribers[Event::class.java]?.forEach { it(event) }
+        
+        executor.execute {
+            // Dispatch to specific event class listeners
+            subscribers[eventClass]?.forEach { 
+                try {
+                    @Suppress("UNCHECKED_CAST")
+                    (it as Subscription<Any>).handler(event)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error in listener for event ${eventClass.simpleName}", e)
+                }
+            }
+            
+            // Dispatch to base Event listeners
+            if (eventClass != Event::class.java && event is Event) {
+                subscribers[Event::class.java]?.forEach { 
+                    try {
+                        @Suppress("UNCHECKED_CAST")
+                        (it as Subscription<Any>).handler(event)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error in base listener for event ${eventClass.simpleName}", e)
+                    }
+                }
+            }
         }
     }
 
-    fun <T : Any> subscribe(eventClass: Class<T>, handler: (T) -> Unit) {
-        subscribers.getOrPut(eventClass) { mutableListOf() }.add { handler(it as T) }
+    fun <T : Any> subscribe(owner: Any, eventClass: Class<T>, handler: (T) -> Unit) {
+        subscribers.getOrPut(eventClass) { CopyOnWriteArrayList() }.add(Subscription(owner, handler))
     }
 
-    inline fun <reified T : Event> subscribe(crossinline handler: (T) -> Unit) {
-        subscribe(T::class.java) { handler(it) }
+    inline fun <reified T : Event> subscribe(owner: Any, crossinline handler: (T) -> Unit) {
+        subscribe(owner, T::class.java) { handler(it) }
     }
 
-    fun <T : Any> unsubscribe(eventClass: Class<T>, handler: (T) -> Unit) {
-        subscribers[eventClass]?.remove(handler)
+    fun unsubscribeAll(owner: Any) {
+        subscribers.values.forEach { list ->
+            list.removeIf { it.owner === owner }
+        }
     }
 
     fun clear() {

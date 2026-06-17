@@ -4,15 +4,14 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
-import android.os.Bundle
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.Tasks
 import com.sara.android.ui.LogBuffer
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 class LocationCommand : Command {
@@ -32,97 +31,53 @@ class LocationCommand : Command {
 
         if (!fineGranted && !coarseGranted) {
             return CommandResult.Text(
-                "\uD83D\uDCCD Location permission not granted.\n" +
+                "📍 Location permission not granted.\n" +
                 "Grant ACCESS_FINE_LOCATION or ACCESS_COARSE_LOCATION " +
-                "via Settings \u2192 Apps \u2192 SARA \u2192 Permissions."
+                "via Settings → Apps → SARA → Permissions."
             )
         }
 
-        val lm = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val gpsEnabled = lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
-        val networkEnabled = lm.isProviderEnabled(LocationManager.NETWORK_PROVIDER)
-
-        if (!gpsEnabled && !networkEnabled) {
-            return CommandResult.Text(
-                "\uD83D\uDCCD Location services are disabled.\n" +
-                "Enable GPS/Location in Settings \u2192 Location."
-            )
+        val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+        
+        if (context is com.sara.android.service.SaraForegroundService) {
+            context.addForegroundType(android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+        }
+        
+        var location: Location? = null
+        try {
+            val task = fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+            location = Tasks.await(task, 10, TimeUnit.SECONDS)
+        } catch (e: Exception) {
+            log.warn(name, "getCurrentLocation failed: ${e.message}")
         }
 
-        val freshLatch = CountDownLatch(1)
-        var bestLocation: Location? = null
-
-        val listener = object : LocationListener {
-            override fun onLocationChanged(loc: Location) {
-                if (bestLocation == null || loc.accuracy < bestLocation!!.accuracy) {
-                    bestLocation = loc
-                }
-                if (loc.accuracy < 10f) {
-                    freshLatch.countDown()
-                }
+        if (location == null) {
+            try {
+                val lastTask = fusedClient.lastLocation
+                location = Tasks.await(lastTask, 2, TimeUnit.SECONDS)
+            } catch (e: Exception) {
+                log.warn(name, "getLastLocation failed: ${e.message}")
             }
-            override fun onStatusChanged(p: String?, s: Int, extras: Bundle?) {}
-            override fun onProviderEnabled(p: String) {}
-            override fun onProviderDisabled(p: String) {}
         }
 
-        if (gpsEnabled) {
-            try {
-                lm.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, listener)
-            } catch (_: SecurityException) {}
-        }
-        if (networkEnabled) {
-            try {
-                lm.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, listener)
-            } catch (_: SecurityException) {}
-        }
-
-        val gotFresh = freshLatch.await(8, TimeUnit.SECONDS)
-        lm.removeUpdates(listener)
-
-        if (gotFresh && bestLocation != null) {
+        if (location != null) {
+            if (context is com.sara.android.service.SaraForegroundService) {
+                context.removeForegroundType(android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            }
             val elapsed = System.currentTimeMillis() - startTime
-            val provider = bestLocation!!.provider ?: "unknown"
-            log.info(name, "Fresh location: provider=$provider, accuracy=${bestLocation!!.accuracy}m, time=${elapsed}ms")
-            return formatLocation(bestLocation!!, "Fresh", provider)
+            val provider = location.provider ?: "fused"
+            log.info(name, "Location found: provider=$provider, accuracy=${location.accuracy}m, time=${elapsed}ms")
+            return formatLocation(location, "Fused", provider)
         }
 
-        if (bestLocation != null) {
-            val elapsed = System.currentTimeMillis() - startTime
-            val provider = bestLocation!!.provider ?: "unknown"
-            log.info(name, "Best available (timeout): provider=$provider, accuracy=${bestLocation!!.accuracy}m, time=${elapsed}ms")
-            return formatLocation(bestLocation!!, "Fresh", provider)
-        }
-
-        log.info(name, "Fresh location timed out after 8s, falling back to cached")
-
-        val providers = listOf(
-            LocationManager.GPS_PROVIDER,
-            LocationManager.NETWORK_PROVIDER,
-            LocationManager.PASSIVE_PROVIDER
-        )
-
-        var cachedLocation: Location? = null
-        for (p in providers) {
-            try {
-                val loc = lm.getLastKnownLocation(p)
-                if (loc != null && (cachedLocation == null || loc.accuracy < cachedLocation!!.accuracy)) {
-                    cachedLocation = loc
-                }
-            } catch (_: SecurityException) {}
-        }
-
-        if (cachedLocation != null) {
-            val elapsed = System.currentTimeMillis() - startTime
-            val provider = cachedLocation!!.provider ?: "unknown"
-            log.info(name, "Cached location: provider=$provider, accuracy=${cachedLocation!!.accuracy}m, time=${elapsed}ms")
-            return formatLocation(cachedLocation!!, "Cached", provider)
-        }
-
+        if (context is com.sara.android.service.SaraForegroundService) {
+                context.removeForegroundType(android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            }
+            
         return CommandResult.Text(
-            "\uD83D\uDCCD Could not obtain location.\n" +
-            "No GPS or Network location data available. " +
-            "Try moving to an open area and ensure location is enabled."
+            "📍 Could not obtain location.\n" +
+            "No location data available even after 10s timeout. " +
+            "Ensure device Location is enabled."
         )
     }
 
@@ -140,7 +95,7 @@ class LocationCommand : Command {
         }
 
         return CommandResult.Text(buildString {
-            appendLine("\uD83D\uDCCD Location")
+            appendLine("📍 Location")
             appendLine()
             appendLine("Source: $source $provider")
             appendLine("Latitude: ${"%.6f".format(loc.latitude)}")

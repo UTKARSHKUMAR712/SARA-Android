@@ -12,6 +12,8 @@ import com.sara.android.modules.commands.CameraCommand
 import com.sara.android.modules.commands.ClipboardCommand
 import com.sara.android.modules.commands.CommandResult
 import com.sara.android.modules.commands.GpsCommand
+import com.sara.android.modules.commands.DiagnosticsCommand
+import com.sara.android.modules.commands.FileCommand
 import com.sara.android.modules.commands.HelpCommand
 import com.sara.android.modules.commands.LocationCommand
 import com.sara.android.modules.commands.LockCommand
@@ -20,6 +22,7 @@ import com.sara.android.modules.commands.NetworkCommand
 import com.sara.android.modules.commands.NotifyCommand
 import com.sara.android.modules.commands.PingCommand
 import com.sara.android.modules.commands.RingCommand
+import com.sara.android.modules.commands.RuleCommand
 import com.sara.android.modules.commands.ScreenshotCommand
 import com.sara.android.modules.commands.StatusCommand
 import com.sara.android.modules.commands.TorchCommand
@@ -98,6 +101,7 @@ class TelegramModule : Module {
         commandRouter.registerAll(listOf(
             PingCommand(),
             StatusCommand(),
+            DiagnosticsCommand(),
             LockCommand(),
             HelpCommand(commandRouter),
             BatteryCommand(),
@@ -112,7 +116,9 @@ class TelegramModule : Module {
             NotifyCommand(),
             CameraCommand(),
             ScreenshotCommand(),
-            TrackCommand()
+            TrackCommand(),
+            RuleCommand(),
+            FileCommand()
         ))
         subscribeTrackingEvents()
         LogBuffer.getInstance(context).info(name, "Connecting to Telegram...")
@@ -146,6 +152,7 @@ class TelegramModule : Module {
     }
 
     override fun onStop() {
+        EventBus.unsubscribeAll(this)
         polling = false
         pollHandler?.removeCallbacksAndMessages(null)
         pollThread?.quitSafely()
@@ -157,7 +164,7 @@ class TelegramModule : Module {
     }
 
     private fun subscribeTrackingEvents() {
-        EventBus.subscribe(TrackingUpdateEvent::class.java) { event ->
+        EventBus.subscribe(this, TrackingUpdateEvent::class.java) { event ->
             val c = client ?: return@subscribe
             val u = event.update
             val df = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US)
@@ -180,7 +187,7 @@ class TelegramModule : Module {
             } catch (_: Exception) {}
         }
 
-        EventBus.subscribe(TrackingSessionEvent::class.java) { event ->
+        EventBus.subscribe(this, TrackingSessionEvent::class.java) { event ->
             val c = client ?: return@subscribe
             val s = event.summary
             val duration = s.endTime - s.startTime
@@ -208,6 +215,16 @@ class TelegramModule : Module {
                 c.sendMessage(s.chatId, text)
             } catch (_: Exception) {}
         }
+
+        EventBus.subscribe(this, TelegramNotificationEvent::class.java) { event ->
+            val c = client ?: return@subscribe
+            val chatId = com.sara.android.modules.commands.TrackCommand.lastChatId
+            if (chatId != 0L) {
+                try {
+                    c.sendMessage(chatId, event.message)
+                } catch (_: Exception) {}
+            }
+        }
     }
 
     private fun startPolling(context: Context) {
@@ -234,14 +251,19 @@ class TelegramModule : Module {
         val startMs = System.currentTimeMillis()
         log.info(name, "Incoming from @$userName ($firstName): $text")
 
-        val reply: CommandResult? = when {
-            text.equals("hi", ignoreCase = true) || text.equals("/start", ignoreCase = true) -> {
-                CommandResult.Text("Hello! I am SARA \uD83E\uDD16")
+        val reply: CommandResult? = try {
+            when {
+                text.equals("hi", ignoreCase = true) || text.equals("/start", ignoreCase = true) -> {
+                    CommandResult.Text("Hello! I am SARA \uD83E\uDD16")
+                }
+                text.startsWith("/") || text.startsWith("\\") -> {
+                    commandRouter.route(text, ctx)
+                }
+                else -> null
             }
-            text.startsWith("/") || text.startsWith("\\") -> {
-                commandRouter.route(text, ctx)
-            }
-            else -> null
+        } catch (e: Exception) {
+            log.error(name, "Command crashed: ${e.message}")
+            CommandResult.Text("⚠️ Internal Error: ${e.message}")
         }
 
         if (reply != null) {

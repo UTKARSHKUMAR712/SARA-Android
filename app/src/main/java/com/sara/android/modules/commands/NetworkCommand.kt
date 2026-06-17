@@ -3,7 +3,6 @@ package com.sara.android.modules.commands
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
-import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import java.net.Inet4Address
 import java.net.NetworkInterface
@@ -31,6 +30,7 @@ class NetworkCommand : Command {
         }
 
         val connected = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        val metered = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED) != true
 
         val ip = try {
             NetworkInterface.getNetworkInterfaces().asSequence()
@@ -39,19 +39,14 @@ class NetworkCommand : Command {
                 ?.hostAddress ?: "N/A"
         } catch (_: Exception) { "N/A" }
 
-        val wm = context.applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
-        val ssid = try { wm.connectionInfo?.ssid ?: "N/A" } catch (_: Exception) { "N/A" }
-
         return CommandResult.Text(buildString {
-            appendLine("\uD83C\uDF10 Network")
+            appendLine("🌐 <b>Network Diagnostics</b>")
             appendLine()
-            appendLine("Connected: ${if (connected) "Yes" else "No"}")
-            appendLine("Transport: $transport")
-            if (vpn) appendLine("VPN: Active")
-            if (wifi && ssid != "N/A" && ssid != "<unknown ssid>") {
-                appendLine("SSID: $ssid")
-            }
-            appendLine("Local IP: $ip")
+            appendLine("<b>Connection:</b> ${if (connected) "✅ Online" else "❌ Offline"}")
+            appendLine("<b>Transport:</b> $transport")
+            if (vpn) appendLine("<b>VPN:</b> ✅ Active")
+            appendLine("<b>Metered:</b> ${if (metered) "Yes" else "No (Unmetered)"}")
+            appendLine("<b>Local IP:</b> <code>$ip</code>")
         })
     }
 }

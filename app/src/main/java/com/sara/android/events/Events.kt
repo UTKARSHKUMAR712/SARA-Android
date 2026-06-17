@@ -1,7 +1,11 @@
 package com.sara.android.events
 
-open class Event {
+import java.util.UUID
+
+open class Event(val source: String = "System") {
+    val id: String = UUID.randomUUID().toString()
     val timestamp: Long = System.currentTimeMillis()
+    open val name: String = this::class.java.simpleName
 }
 
 class ServiceStartEvent : Event()
@@ -20,6 +24,7 @@ class HealthEvent(
 ) : Event()
 
 class TelegramStatusEvent(val connected: Boolean, val message: String = "") : Event()
+class TelegramNotificationEvent(val message: String) : Event()
 
 class AppEvent(val packageName: String, val action: String) : Event()
 class MediaEvent(val packageName: String, val isPlaying: Boolean) : Event()

@@ -5,12 +5,12 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.sara.android.R
-import com.sara.android.events.EventBus
 import com.sara.android.modules.telegram.TelegramModule
 import com.sara.android.runtime.SaraRuntime
 
@@ -19,6 +19,8 @@ class SaraForegroundService : Service() {
     private val binder = LocalBinder()
     lateinit var runtime: SaraRuntime
         private set
+        
+    private var currentForegroundTypes = 0
 
     inner class LocalBinder : Binder() {
         fun getService(): SaraForegroundService = this@SaraForegroundService
@@ -39,12 +41,7 @@ class SaraForegroundService : Service() {
             ACTION_RESTART -> {
                 runtime.stop()
                 runtime = SaraRuntime(this).build()
-                try {
-                    startForeground(NOTIFICATION_ID, buildNotification())
-                } catch (_: Exception) {
-                    getSystemService(NotificationManager::class.java)
-                        .notify(NOTIFICATION_ID, buildNotification())
-                }
+                startForegroundWithTypes(ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING)
                 runtime.start()
                 return START_STICKY
             }
@@ -54,16 +51,35 @@ class SaraForegroundService : Service() {
                 return START_NOT_STICKY
             }
             else -> {
-                try {
-                    startForeground(NOTIFICATION_ID, buildNotification())
-                } catch (_: Exception) {
-                    getSystemService(NotificationManager::class.java)
-                        .notify(NOTIFICATION_ID, buildNotification())
-                }
+                startForegroundWithTypes(ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING)
                 runtime.start()
                 return START_STICKY
             }
         }
+    }
+
+    fun startForegroundWithTypes(types: Int) {
+        currentForegroundTypes = types
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, buildNotification(), types)
+            } else {
+                startForeground(NOTIFICATION_ID, buildNotification())
+            }
+        } catch (_: Exception) {
+            getSystemService(NotificationManager::class.java)
+                .notify(NOTIFICATION_ID, buildNotification())
+        }
+    }
+    
+    fun addForegroundType(type: Int) {
+        startForegroundWithTypes(currentForegroundTypes or type)
+    }
+    
+    fun removeForegroundType(type: Int) {
+        // We always keep REMOTE_MESSAGING
+        val newTypes = (currentForegroundTypes and type.inv()) or ServiceInfo.FOREGROUND_SERVICE_TYPE_REMOTE_MESSAGING
+        startForegroundWithTypes(newTypes)
     }
 
     override fun onBind(intent: Intent?): IBinder = binder
