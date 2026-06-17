@@ -22,7 +22,7 @@ class CameraCommand : Command {
     override fun execute(context: Context, args: List<String>): CommandResult {
         if (ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA)
             != PackageManager.PERMISSION_GRANTED) {
-            return CommandResult.Text("📷 Camera permission not granted.")
+            return CommandResult.Text("📷 Camera permission not granted.\nTo enable, open SARA Dashboard and tap 'Camera'.")
         }
 
         val cameraModule = CameraModule.instance

@@ -22,19 +22,11 @@ class LocationCommand : Command {
         val log = LogBuffer.getInstance(context)
         val startTime = System.currentTimeMillis()
 
-        val fineGranted = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_FINE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-        val coarseGranted = ContextCompat.checkSelfPermission(
-            context, Manifest.permission.ACCESS_COARSE_LOCATION
-        ) == PackageManager.PERMISSION_GRANTED
-
-        if (!fineGranted && !coarseGranted) {
-            return CommandResult.Text(
-                "📍 Location permission not granted.\n" +
-                "Grant ACCESS_FINE_LOCATION or ACCESS_COARSE_LOCATION " +
-                "via Settings → Apps → SARA → Permissions."
-            )
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION)
+            != PackageManager.PERMISSION_GRANTED) {
+            return CommandResult.Text("📍 Location permission not granted.\nTo enable, open SARA Dashboard and tap 'Location'.")
         }
 
         val fusedClient = LocationServices.getFusedLocationProviderClient(context)

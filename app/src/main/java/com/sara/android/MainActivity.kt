@@ -114,32 +114,32 @@ class MainActivity : AppCompatActivity() {
 
     private fun updatePermissionButtonStatuses() {
         val notifGranted = android.provider.Settings.Secure.getString(contentResolver, "enabled_notification_listeners")?.contains(packageName) == true
-        grantNotificationBtn.text = if (notifGranted) "Notifications ✅" else "Notifications ❌"
+        grantNotificationBtn.text = if (notifGranted) "Status: ✅ ENABLED" else "Status: ❌ DISABLED"
         
         val usageGranted = try {
             val appOps = getSystemService(Context.APP_OPS_SERVICE) as android.app.AppOpsManager
             val mode = appOps.unsafeCheckOpNoThrow(android.app.AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), packageName)
             mode == android.app.AppOpsManager.MODE_ALLOWED
         } catch (e: Exception) { false }
-        grantUsageStatsBtn.text = if (usageGranted) "Usage Stats ✅" else "Usage Stats ❌"
+        grantUsageStatsBtn.text = if (usageGranted) "Status: ✅ ENABLED" else "Status: ❌ DISABLED"
         
         val cameraGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED
-        grantCameraBtn.text = if (cameraGranted) "Camera ✅" else "Camera ❌"
+        grantCameraBtn.text = if (cameraGranted) "Status: ✅ ENABLED" else "Status: ❌ DISABLED"
         
         val locationGranted = ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        grantLocationBtn.text = if (locationGranted) "Location ✅" else "Location ❌"
+        grantLocationBtn.text = if (locationGranted) "Status: ✅ ENABLED" else "Status: ❌ DISABLED"
         
         val pm = getSystemService(Context.POWER_SERVICE) as android.os.PowerManager
         val batteryGranted = pm.isIgnoringBatteryOptimizations(packageName)
-        grantBatteryBtn.text = if (batteryGranted) "Battery Opt ✅" else "Battery Opt ❌"
+        grantBatteryBtn.text = if (batteryGranted) "Status: ✅ ENABLED" else "Status: ❌ DISABLED"
         
         val dpm = getSystemService(Context.DEVICE_POLICY_SERVICE) as android.app.admin.DevicePolicyManager
         val adminComponent = ComponentName(this, com.sara.android.modules.commands.SaraDeviceAdminReceiver::class.java)
         val adminGranted = dpm.isAdminActive(adminComponent)
-        grantDeviceAdminBtn.text = if (adminGranted) "Device Admin ✅" else "Device Admin ❌"
+        grantDeviceAdminBtn.text = if (adminGranted) "Status: ✅ ENABLED" else "Status: ❌ DISABLED"
         
         val screenGranted = ScreenshotModule.instance?.mediaProjection != null
-        grantScreenCaptureBtn.text = if (screenGranted) "Screen ✅" else "Screen ❌"
+        grantScreenCaptureBtn.text = if (screenGranted) "Status: ✅ ENABLED" else "Status: ❌ DISABLED"
     }
 
     override fun onStart() {

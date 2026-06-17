@@ -143,9 +143,8 @@ class TrackCommand : Command {
 
         if (!fineGranted && !coarseGranted) {
             return CommandResult.Text(
-                "\uD83D\uDCCD Location permission not granted.\n" +
-                "Grant ACCESS_FINE_LOCATION or ACCESS_COARSE_LOCATION " +
-                "via Settings \u2192 Apps \u2192 SARA \u2192 Permissions."
+                "📍 Location permission not granted.\n" +
+                "To enable, open SARA Dashboard and tap 'Location'."
             )
         }
 

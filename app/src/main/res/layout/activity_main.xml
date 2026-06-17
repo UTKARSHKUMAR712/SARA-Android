@@ -115,20 +115,62 @@
             android:textSize="14sp"
             android:layout_marginTop="16dp" />
 
-        <GridLayout
+        <!-- Permissions Cards -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:columnCount="2"
-            android:layout_marginTop="4dp">
+            android:orientation="vertical"
+            android:layout_marginTop="8dp">
 
-            <Button android:id="@+id/grantNotificationBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:text="Notifications" android:layout_margin="2dp" android:backgroundTint="#1976D2" />
-            <Button android:id="@+id/grantCameraBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:text="Camera" android:layout_margin="2dp" android:backgroundTint="#1976D2" />
-            <Button android:id="@+id/grantLocationBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:text="Location" android:layout_margin="2dp" android:backgroundTint="#1976D2" />
-            <Button android:id="@+id/grantScreenCaptureBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:text="Screen" android:layout_margin="2dp" android:backgroundTint="#1976D2" />
-            <Button android:id="@+id/grantUsageStatsBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:text="Usage Stats" android:layout_margin="2dp" android:backgroundTint="#1976D2" />
-            <Button android:id="@+id/grantDeviceAdminBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:text="Device Admin" android:layout_margin="2dp" android:backgroundTint="#1976D2" />
-            <Button android:id="@+id/grantBatteryBtn" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_columnWeight="1" android:text="Battery Opt" android:layout_margin="2dp" android:backgroundTint="#1976D2" />
-        </GridLayout>
+            <!-- Notifications -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1E1E1E" android:padding="12dp" android:layout_marginBottom="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Notification Access" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Required to read and reply to messages from other apps." android:textColor="#999999" android:textSize="12sp" android:layout_marginTop="4dp" />
+                <Button android:id="@+id/grantNotificationBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Status: Checking..." android:layout_marginTop="8dp" android:backgroundTint="#1976D2" />
+            </LinearLayout>
+
+            <!-- Screen Capture -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1E1E1E" android:padding="12dp" android:layout_marginBottom="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Screen Capture" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Allows SARA to take screenshots via the /screenshot command." android:textColor="#999999" android:textSize="12sp" android:layout_marginTop="4dp" />
+                <Button android:id="@+id/grantScreenCaptureBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Status: Checking..." android:layout_marginTop="8dp" android:backgroundTint="#1976D2" />
+            </LinearLayout>
+
+            <!-- Camera -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1E1E1E" android:padding="12dp" android:layout_marginBottom="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Camera" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Allows SARA to take photos using the /camera command." android:textColor="#999999" android:textSize="12sp" android:layout_marginTop="4dp" />
+                <Button android:id="@+id/grantCameraBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Status: Checking..." android:layout_marginTop="8dp" android:backgroundTint="#1976D2" />
+            </LinearLayout>
+
+            <!-- Location -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1E1E1E" android:padding="12dp" android:layout_marginBottom="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Location" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Enables tracking and GPS commands (/location, /track)." android:textColor="#999999" android:textSize="12sp" android:layout_marginTop="4dp" />
+                <Button android:id="@+id/grantLocationBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Status: Checking..." android:layout_marginTop="8dp" android:backgroundTint="#1976D2" />
+            </LinearLayout>
+
+            <!-- Usage Stats -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1E1E1E" android:padding="12dp" android:layout_marginBottom="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Usage Stats" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Used for automation rules that trigger when specific apps are opened or closed." android:textColor="#999999" android:textSize="12sp" android:layout_marginTop="4dp" />
+                <Button android:id="@+id/grantUsageStatsBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Status: Checking..." android:layout_marginTop="8dp" android:backgroundTint="#1976D2" />
+            </LinearLayout>
+
+            <!-- Device Admin -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1E1E1E" android:padding="12dp" android:layout_marginBottom="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Device Admin" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Allows SARA to instantly lock your device via the /lock command." android:textColor="#999999" android:textSize="12sp" android:layout_marginTop="4dp" />
+                <Button android:id="@+id/grantDeviceAdminBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Status: Checking..." android:layout_marginTop="8dp" android:backgroundTint="#1976D2" />
+            </LinearLayout>
+
+            <!-- Battery Optimization -->
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1E1E1E" android:padding="12dp" android:layout_marginBottom="8dp">
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Battery Exemption" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Prevents Android from killing SARA in the background, ensuring 24/7 reliability." android:textColor="#999999" android:textSize="12sp" android:layout_marginTop="4dp" />
+                <Button android:id="@+id/grantBatteryBtn" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Status: Checking..." android:layout_marginTop="8dp" android:backgroundTint="#1976D2" />
+            </LinearLayout>
+        </LinearLayout>
 
         <TextView
             android:id="@+id/serviceStatus"
