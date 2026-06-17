@@ -5,6 +5,7 @@ import android.os.Handler
 import android.os.HandlerThread
 import com.sara.android.events.EventBus
 import com.sara.android.events.TelegramStatusEvent
+import com.sara.android.events.TelegramNotificationEvent
 import com.sara.android.events.TrackingSessionEvent
 import com.sara.android.events.TrackingUpdateEvent
 import com.sara.android.modules.commands.BatteryCommand
